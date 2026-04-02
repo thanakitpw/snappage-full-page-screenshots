@@ -1,4 +1,4 @@
-# SnapPage
+# Screenshot Website
 
 ## ภาษา
 - ตอบเป็นภาษาไทยเสมอ
@@ -6,7 +6,7 @@
 - ใช้ i18n แบบง่ายๆ ด้วย React Context สลับภาษาได้
 
 ## โปรเจกต์นี้คืออะไร
-**SnapPage** — เครื่องมือ screenshot เว็บไซต์แบบ full-page ในรูปแบบ Web app ให้คนทั่วโลกใช้ได้ง่าย
+เครื่องมือ screenshot เว็บไซต์แบบ full-page ในรูปแบบ Web app ให้คนทั่วโลกใช้ได้ง่าย
 
 ## Tech Stack
 - **Framework:** Next.js 15 (App Router)
@@ -64,16 +64,6 @@ screenshot-website/
 - ฟอนต์ English: Helvetica (system font stack)
 - ฟอนต์ Thai: Noto Sans Thai (next/font/google)
 - ใช้ shadcn/ui components: Button, Input, Select, Card, Badge, Checkbox
-
-## Design System
-- Style: Flat Design, minimal, clean
-- Primary: #3B82F6
-- Secondary: #60A5FA
-- CTA: #F97316
-- Background: #F8FAFC
-- Text: #1E293B
-- Transitions: 150-200ms
-- ไม่ใช้ emoji เป็น icon — ใช้ Lucide icons (มากับ shadcn)
 
 ## SEO
 - ใช้ Next.js Metadata API
