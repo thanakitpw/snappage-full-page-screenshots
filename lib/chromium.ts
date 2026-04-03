@@ -10,8 +10,6 @@ const VIEWPORTS = {
 export type Viewport = keyof typeof VIEWPORTS;
 export type Format = "png" | "jpeg";
 
-// Chromium binary from official @sparticuz/chromium GitHub releases
-// Must match installed @sparticuz/chromium-min version (143.x)
 const CHROMIUM_URL =
   "https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar";
 
@@ -26,16 +24,11 @@ export async function launchBrowser() {
     return playwrightChromium.launch({ headless: true });
   }
 
-  // Production (Vercel): download chromium and launch with memory-optimized args
+  chromium.setGraphicsMode = false;
+
   const executablePath = await chromium.executablePath(CHROMIUM_URL);
   return playwrightChromium.launch({
-    args: [
-      ...chromium.args,
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--single-process",
-      "--no-zygote",
-    ],
+    args: chromium.args,
     executablePath,
     headless: true,
   });
