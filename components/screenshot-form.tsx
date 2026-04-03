@@ -112,8 +112,10 @@ export function ScreenshotForm() {
       const blobUrl = URL.createObjectURL(blob);
       const hostname = new URL(normalized).hostname;
       setTargetHostname(hostname);
+      const now = new Date();
+      const ts = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}-${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
       setScreenshots([
-        { url: blobUrl, filename: `${hostname}-screenshot.${format}` },
+        { url: blobUrl, filename: `${hostname}-${ts}.${format}` },
       ]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to capture screenshot");
