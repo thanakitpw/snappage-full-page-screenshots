@@ -10,9 +10,11 @@ const VIEWPORTS = {
 export type Viewport = keyof typeof VIEWPORTS;
 export type Format = "png" | "jpeg";
 
-// Chromium binary hosted on GitHub releases (must match installed @sparticuz/chromium-min version)
+// Chromium binary from official @sparticuz/chromium GitHub releases
+// Must match installed @sparticuz/chromium-min version (143.x)
+// Vercel serverless runs on x64 (Amazon Linux)
 const CHROMIUM_URL =
-  "https://github.com/nicosomb/chromium-pack/releases/download/v143.0.0/chromium-v143.0.0-pack.tar";
+  "https://github.com/Sparticuz/chromium/releases/download/v143.0.4/chromium-v143.0.4-pack.x64.tar";
 
 export function getViewport(viewport: Viewport) {
   return VIEWPORTS[viewport] || VIEWPORTS.desktop;
