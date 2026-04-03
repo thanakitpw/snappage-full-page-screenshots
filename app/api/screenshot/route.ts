@@ -204,8 +204,9 @@ export async function POST(req: NextRequest) {
     const context = await browser.newContext({ viewport: vp });
     const page = await context.newPage();
 
-    await page.goto(url, { timeout: 30000, waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle", { timeout: 30000 });
+    await page.goto(url, { timeout: 45000, waitUntil: "load" });
+    // Wait for network to settle, but don't hang on long-polling connections
+    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
     if (safeDelay > 0) {
       await page.waitForTimeout(safeDelay);

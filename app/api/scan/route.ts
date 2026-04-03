@@ -27,8 +27,8 @@ export async function POST(req: NextRequest) {
     });
     const page = await context.newPage();
 
-    await page.goto(url, { timeout: 30000, waitUntil: "domcontentloaded" });
-    await page.waitForLoadState("networkidle", { timeout: 30000 });
+    await page.goto(url, { timeout: 45000, waitUntil: "load" });
+    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
 
     const baseUrl = new URL(url);
     const origin = baseUrl.origin;
