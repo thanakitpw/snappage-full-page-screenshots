@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { launchBrowser, getViewport, type Viewport, type Format } from "@/lib/chromium";
-import type { Page } from "playwright-core";
+import type { Page } from "puppeteer-core";
 
 export const maxDuration = 60;
 
 // Dismiss common popups, cookie banners, and modal overlays
 async function dismissPopups(page: Page) {
-  // Step 1: Press Escape to close any modal that listens to keyboard
+  // Step 1: Press Escape
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(500);
+  await new Promise((r) => setTimeout(r, 500));
 
   // Step 2: Try clicking common dismiss buttons
   const dismissTexts = [
@@ -21,78 +21,61 @@ async function dismissPopups(page: Page) {
 
   for (const text of dismissTexts) {
     try {
-      const btn = page.locator(`button:has-text("${text}"), a:has-text("${text}")`).first();
-      if (await btn.isVisible({ timeout: 150 })) {
-        await btn.click({ timeout: 500 });
-        await page.waitForTimeout(200);
+      const btn = await page.$$(`xpath/.//button[contains(text(),"${text}")] | .//a[contains(text(),"${text}")]`);
+      if (btn.length > 0) {
+        const isVisible = await btn[0].boundingBox();
+        if (isVisible) {
+          await btn[0].click();
+          await new Promise((r) => setTimeout(r, 200));
+        }
       }
     } catch {
       // Ignore
     }
   }
 
-  // Also try common close button selectors
+  // Step 3: Try common close button selectors
   const closeSelectors = [
     '[data-dismiss]', '[data-close]', '.btn-close', '.close-btn',
     '[aria-label="Close"]', '[aria-label="close"]',
-    '[role="dialog"] button', '[role="alertdialog"] button',
   ];
 
   for (const selector of closeSelectors) {
     try {
-      const btn = page.locator(selector).first();
-      if (await btn.isVisible({ timeout: 150 })) {
-        await btn.click({ timeout: 500 });
-        await page.waitForTimeout(200);
+      const el = await page.$(selector);
+      if (el) {
+        const box = await el.boundingBox();
+        if (box) {
+          await el.click();
+          await new Promise((r) => setTimeout(r, 200));
+        }
       }
     } catch {
       // Ignore
     }
   }
 
-  // Step 3: Escape again in case new modals appeared
+  // Step 4: Escape again
   await page.keyboard.press("Escape");
-  await page.waitForTimeout(300);
+  await new Promise((r) => setTimeout(r, 300));
 
-  // Step 4: Nuclear option — inject CSS to forcefully hide ALL overlays
+  // Step 5: Inject CSS to hide all overlays
   await page.addStyleTag({
     content: `
-      /* Hide all fixed/sticky positioned elements that are likely overlays */
-      [role="dialog"],
-      [role="alertdialog"],
-      [aria-modal="true"],
-      [class*="modal" i],
-      [class*="popup" i],
-      [class*="overlay" i],
-      [class*="cookie" i],
-      [class*="consent" i],
-      [class*="gdpr" i],
-      [class*="banner" i][style*="fixed"],
-      [class*="notification" i][style*="fixed"],
-      [class*="subscribe" i],
-      [class*="newsletter" i],
-      [class*="backdrop" i],
-      [class*="lightbox" i],
-      [class*="interstitial" i],
-      [class*="dialog" i]:not(dialog),
-      [class*="toast" i],
+      [role="dialog"], [role="alertdialog"], [aria-modal="true"],
+      [class*="modal" i], [class*="popup" i], [class*="overlay" i],
+      [class*="cookie" i], [class*="consent" i], [class*="gdpr" i],
+      [class*="subscribe" i], [class*="newsletter" i], [class*="backdrop" i],
+      [class*="lightbox" i], [class*="interstitial" i], [class*="toast" i],
       [class*="promo" i],
-      [id*="modal" i],
-      [id*="popup" i],
-      [id*="overlay" i],
-      [id*="cookie" i],
-      [id*="consent" i],
-      [id*="gdpr" i],
-      [id*="banner" i],
-      [id*="newsletter" i],
-      [id*="subscribe" i] {
+      [id*="modal" i], [id*="popup" i], [id*="overlay" i],
+      [id*="cookie" i], [id*="consent" i], [id*="gdpr" i],
+      [id*="banner" i], [id*="newsletter" i], [id*="subscribe" i] {
         display: none !important;
         visibility: hidden !important;
         opacity: 0 !important;
         pointer-events: none !important;
       }
-
-      /* Reset body overflow in case modal locked scrolling */
       html, body {
         overflow: visible !important;
         position: static !important;
@@ -100,53 +83,28 @@ async function dismissPopups(page: Page) {
     `,
   });
 
-  // Step 5: JS fallback — hide any remaining fixed elements covering the viewport
+  // Step 6: JS fallback for fixed elements
   await page.evaluate(() => {
-    const allElements = document.querySelectorAll("*");
-    for (const el of allElements) {
+    for (const el of document.querySelectorAll("*")) {
       const style = window.getComputedStyle(el);
       if (style.position !== "fixed" && style.position !== "sticky") continue;
-
       const tag = el.tagName.toLowerCase();
-      // Skip nav/header — those are likely legitimate fixed navbars
       if (tag === "nav" || tag === "header") continue;
 
       const rect = el.getBoundingClientRect();
       const zIndex = parseInt(style.zIndex || "0", 10);
 
-      // Full-screen backdrop
-      if (
-        rect.width >= window.innerWidth * 0.9 &&
-        rect.height >= window.innerHeight * 0.9
-      ) {
+      if (rect.width >= window.innerWidth * 0.9 && rect.height >= window.innerHeight * 0.9) {
         (el as HTMLElement).style.setProperty("display", "none", "important");
-        continue;
-      }
-
-      // Large centered element with high z-index = popup
-      if (
-        zIndex > 50 &&
-        rect.width > 200 &&
-        rect.height > 150 &&
-        rect.left > 0 &&
-        rect.top > 0
-      ) {
+      } else if (zIndex > 50 && rect.width > 200 && rect.height > 150) {
         (el as HTMLElement).style.setProperty("display", "none", "important");
-        continue;
-      }
-
-      // Bottom banners (cookie bars, etc)
-      if (
-        rect.bottom >= window.innerHeight - 10 &&
-        rect.width > window.innerWidth * 0.5 &&
-        rect.height < 300
-      ) {
+      } else if (rect.bottom >= window.innerHeight - 10 && rect.width > window.innerWidth * 0.5 && rect.height < 300) {
         (el as HTMLElement).style.setProperty("display", "none", "important");
       }
     }
   });
 
-  await page.waitForTimeout(200);
+  await new Promise((r) => setTimeout(r, 200));
 }
 
 export async function POST(req: NextRequest) {
@@ -165,7 +123,6 @@ export async function POST(req: NextRequest) {
     fullPage: boolean;
   };
 
-  // Validate URL
   if (!url || typeof url !== "string") {
     return NextResponse.json({ error: "URL is required" }, { status: 400 });
   }
@@ -177,7 +134,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate viewport
   const vp = getViewport(viewport);
   if (!vp) {
     return NextResponse.json(
@@ -186,7 +142,6 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate format
   if (!["png", "jpeg"].includes(format)) {
     return NextResponse.json(
       { error: "Format must be png or jpeg" },
@@ -194,25 +149,23 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Validate delay
   const safeDelay = Math.min(Math.max(Number(delay) || 0, 0), 10000);
 
   let browser = null;
 
   try {
     browser = await launchBrowser();
-    const context = await browser.newContext({ viewport: vp });
-    const page = await context.newPage();
+    const page = await browser.newPage();
+    await page.setViewport(vp);
 
     await page.goto(url, { timeout: 45000, waitUntil: "load" });
-    // Wait for network to settle, but don't hang on long-polling connections
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    // Soft wait for network idle
+    await page.waitForNetworkIdle({ timeout: 10000 }).catch(() => {});
 
     if (safeDelay > 0) {
-      await page.waitForTimeout(safeDelay);
+      await new Promise((r) => setTimeout(r, safeDelay));
     }
 
-    // Dismiss popups, then inject CSS to nuke remaining overlays right before screenshot
     await dismissPopups(page);
 
     const screenshotBuffer = await page.screenshot({
@@ -223,7 +176,7 @@ export async function POST(req: NextRequest) {
     const contentType = format === "png" ? "image/png" : "image/jpeg";
     const extension = format === "png" ? "png" : "jpg";
 
-    return new NextResponse(new Uint8Array(screenshotBuffer), {
+    return new NextResponse(Buffer.from(screenshotBuffer), {
       headers: {
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="screenshot.${extension}"`,
@@ -233,7 +186,7 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Screenshot error:", message);
 
-    if (message.includes("Timeout")) {
+    if (message.includes("Timeout") || message.includes("timeout")) {
       return NextResponse.json(
         { error: "Page load timed out after 30 seconds" },
         { status: 504 }

@@ -22,13 +22,11 @@ export async function POST(req: NextRequest) {
 
   try {
     browser = await launchBrowser();
-    const context = await browser.newContext({
-      viewport: getViewport("desktop"),
-    });
-    const page = await context.newPage();
+    const page = await browser.newPage();
+    await page.setViewport(getViewport("desktop"));
 
     await page.goto(url, { timeout: 45000, waitUntil: "load" });
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    await page.waitForNetworkIdle({ timeout: 10000 }).catch(() => {});
 
     const baseUrl = new URL(url);
     const origin = baseUrl.origin;
@@ -78,7 +76,7 @@ export async function POST(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     console.error("Scan error:", message);
 
-    if (message.includes("Timeout")) {
+    if (message.includes("Timeout") || message.includes("timeout")) {
       return NextResponse.json(
         { error: "Page load timed out after 30 seconds" },
         { status: 504 }
