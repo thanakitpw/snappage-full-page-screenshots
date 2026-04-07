@@ -25,8 +25,8 @@ export async function POST(req: NextRequest) {
     const page = await browser.newPage();
     await page.setViewport(getViewport("desktop"));
 
-    await page.goto(url, { timeout: 45000, waitUntil: "load" });
-    await page.waitForNetworkIdle({ timeout: 10000 }).catch(() => {});
+    await page.goto(url, { timeout: 30000, waitUntil: "domcontentloaded" });
+    await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
 
     const baseUrl = new URL(url);
     const origin = baseUrl.origin;

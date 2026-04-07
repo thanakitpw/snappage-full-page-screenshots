@@ -158,9 +158,9 @@ export async function POST(req: NextRequest) {
     const page = await browser.newPage();
     await page.setViewport(vp);
 
-    await page.goto(url, { timeout: 45000, waitUntil: "load" });
-    // Soft wait for network idle
-    await page.waitForNetworkIdle({ timeout: 10000 }).catch(() => {});
+    await page.goto(url, { timeout: 30000, waitUntil: "domcontentloaded" });
+    // Soft wait for network idle — don't block if the page has long-polling
+    await page.waitForNetworkIdle({ timeout: 5000 }).catch(() => {});
 
     if (safeDelay > 0) {
       await new Promise((r) => setTimeout(r, safeDelay));
